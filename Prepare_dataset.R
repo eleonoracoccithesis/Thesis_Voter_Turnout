@@ -29,13 +29,14 @@ merged_data <- sav_files %>%
 print(dim(merged_data))
 head(merged_data)
 
-
+# Save merged_data to CSV file
+write.csv(merged_data, "merged_data.csv", row.names = FALSE)
 
 
 
 #2. SELECT VARIABLES ___________________________________________________________
 
-# Dowlnoad packages
+# Download packages
 library(dplyr)
 
 # Create variable list 
@@ -95,12 +96,12 @@ filtered_data <- merged_data %>%
 print(dim(filtered_data))
 head(filtered_data)
 
+# Save filtered_data to CSV file
+write.csv(filtered_data, "filtered_data.csv", row.names = FALSE)
 
 
 
 #3 AVOID DUPLICATE VOTERS_______________________________________________________
-
-
 # Mapping of voting variables by election year
 voting_vars_by_year <- list(
   "2012" = c("cv13f053", "cv14g053", "cv16h053", "cv17i053", "cv18j053"),
@@ -140,6 +141,9 @@ final_data <- final_data %>% select(-all_of(vars_to_remove), -first_voting_year)
 # Preview result
 head(final_data)
 
+
+# Save final_data to CSV file
+write.csv(final_data, "final_data.csv", row.names = FALSE)
 
 
 
@@ -374,3 +378,6 @@ final_data <- final_data %>% rename(any_of(rename_vector))
 
 # Preview
 head(final_data)
+
+# Save final_data to CSV file
+write.csv(final_data, "final_data.csv", row.names = FALSE)
