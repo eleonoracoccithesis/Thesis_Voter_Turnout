@@ -1,4 +1,4 @@
-# DOWNLOAD PACKAGES
+# Download packages
 library(dplyr)
 library(ggplot2)
 library(tidyr)
@@ -276,11 +276,11 @@ vif_data <- cleaned_data %>%
   mutate(across(everything(), as.numeric)) %>%
   drop_na()  # VIF requires complete cases
 
-# STEP 3: Fit dummy linear model
+# Fit dummy linear model
 dummy_target <- rnorm(nrow(vif_data))  # arbitrary continuous target
 vif_model <- lm(dummy_target ~ ., data = vif_data)
 
-# STEP 4: Compute and show VIF values
+# Compute and show VIF values
 vif_values <- vif(vif_model)
 vif_df <- data.frame(variable = names(vif_values), VIF = round(vif_values, 2)) %>%
   arrange(desc(VIF))
