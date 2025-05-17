@@ -33,7 +33,6 @@ head(merged_data)
 write.csv(merged_data, "merged_data.csv", row.names = FALSE)
 
 
-
 #2. SELECT VARIABLES ___________________________________________________________
 
 # Download packages
@@ -100,7 +99,6 @@ head(filtered_data)
 write.csv(filtered_data, "filtered_data.csv", row.names = FALSE)
 
 
-
 #3 AVOID DUPLICATE VOTERS_______________________________________________________
 # Mapping of voting variables by election year
 voting_vars_by_year <- list(
@@ -144,7 +142,6 @@ head(final_data)
 
 # Save final_data to CSV file
 write.csv(final_data, "final_data.csv", row.names = FALSE)
-
 
 
 #4 CHANGE VARIABLES NAMES FOR CLARITY___________________________________________
