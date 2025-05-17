@@ -1,89 +1,81 @@
-# Download packages
-library(tidymodels)
-library(readr)
-library(dplyr)
-library(stringr)
+# Load required libraries
+library(tidyverse)
+library(caret)
 
-#1 LOAD CLEANED DATA AND PREPARE TARGET_______________________________________
-data <- read_csv("cleaned_data.csv")
-
-# Optional — only if vote_2023 was not prefiltered
-data <- data %>% filter(vote_2023 %in% c(1, 2))
-data <- data %>% mutate(vote_2023 = factor(vote_2023, levels = c(1, 2), labels = c("Yes", "No")))
+#1 LOAD DATA____________________________________________________________________
+cleaned_data <- read_csv("cleaned_data.csv")
 
 
-
-#2 IDENTIFY VARIABLE GROUPS____________________________________________________
-numeric_vars <- grep("^age_\\d{4}$", names(data), value = TRUE)
-
-ordinal_vars <- grep("^(satisfaction|confidence)_(work_government|government|parliament|politicians|political_parties|financial_situation|economy)_\\d{4}$",
-                     names(data), value = TRUE)
-
-vote_vars <- grep("^vote_\\d{4}$", names(data), value = TRUE)
-vote_vars <- setdiff(vote_vars, "vote_2023")
-
-all_predictors <- setdiff(names(data), c("participant", "vote_2023"))
-categorical_vars <- setdiff(all_predictors, c(numeric_vars, ordinal_vars, vote_vars))
+#2 KEEP ALL VOTING HISTORY, ESCLUDE FROM PIVOT__________________________________
+vote_static <- cleaned_data %>%
+  select(participant, vote_2012, vote_2017, vote_2021, vote_2023)
 
 
+#3 PIVOT YEAR-SPECITIFIC FEATURES INTO LONG FORMAT______________________________
+long_data <- cleaned_data %>%
+  select(-vote_2012, -vote_2017, -vote_2021, -vote_2023) %>%  # exclude vote
+  #columns before pivot
+  pivot_longer(
+    cols = matches("_20(1[3-9]|2[0-3])$"),  # match all year-suffixed features
+    names_to = c("feature", "year"),
+    names_pattern = "^(.*)_(\\d{4})$"
+  ) %>%
+  pivot_wider(names_from = feature, values_from = value) %>%
+  mutate(year = as.integer(year)) %>%
+  left_join(vote_static, by = "participant")  # add back static voting vars
 
-#3 TIMELINE SPLIT: train (2012–2015), dev (2016–2020), test (2021–2023)_________
-get_split_year <- function(row) {
-  years <- str_extract(names(row), "_(\\d{4})$") %>%
-    na.omit() %>%
-    str_remove("_") %>%
-    as.numeric()
-  year_votes <- sapply(unique(years), function(y) {
-    sum(!is.na(row[grepl(paste0("_", y, "$"), names(row))]))
-  })
-  if (length(year_votes) == 0) return(NA)
-  best_year <- as.numeric(names(which.max(year_votes)))
-  case_when(
-    best_year %in% 2012:2015 ~ "train",
-    best_year %in% 2016:2020 ~ "dev",
-    best_year %in% 2021:2023 ~ "test",
-    TRUE ~ NA_character_
+
+#4 FILTER ROWS WHERE VOTE_2023 EXISTS___________________________________________
+long_data <- long_data %>%
+  filter(!is.na(vote_2023))
+
+
+#5 ASSIGN TEMPORAL SPLIT________________________________________________________
+long_data <- long_data %>%
+  mutate(split = case_when(
+    year %in% 2013:2016 ~ "train",
+    year %in% 2017:2020 ~ "val",
+    year %in% 2021:2022 ~ "test",
+    year == 2023        ~ "final_test"
+  ))
+
+
+#6 DROP FUTURE VOTE VARIABLES PER SPLIT_________________________________________
+long_data <- long_data %>%
+  mutate(
+    vote_2017 = ifelse(split %in% c("train"), NA, vote_2017),
+    vote_2021 = ifelse(split %in% c("train", "val"), NA, vote_2021)
   )
-}
-data$split <- apply(data, 1, get_split_year)
 
 
-#4 CREATE TRAIN/DEV/TEST SETS___________________________________________________
-train_set <- data %>% filter(split == "train") %>% select(-split)
-dev_set   <- data %>% filter(split == "dev") %>% select(-split)
-test_set  <- data %>% filter(split == "test") %>% select(-split)
+#7 STANDARDIZE ALL NUMERIC FEATURES (EXCLUDE IDs AN TARGETS)____________________
+exclude_cols <- c("participant", "year", "split", "vote_2012", "vote_2017", 
+                  "vote_2021", "vote_2023")
+feature_cols <- setdiff(names(long_data), exclude_cols)
 
-# 💾 (Optional) Save raw split sets
-write_csv(train_set, "train_data.csv")
-write_csv(dev_set,   "dev_data.csv")
-write_csv(test_set,  "test_data.csv")
+# Fit scaler only on training features
+preproc <- preProcess(long_data %>% filter(split == "train") %>% 
+                        select(all_of(feature_cols)),
+                      method = c("center", "scale"))
 
-
-#5 DEFINE RECIPE FUNCTION FOR PREPROCESSING_____________________________________
-create_recipe <- function(df) {
-  recipe(vote_2023 ~ ., data = df) %>%
-    update_role(participant, new_role = "ID") %>%
-    step_mutate_at(all_of(ordinal_vars), fn = as.numeric) %>%
-    step_mutate_at(all_of(categorical_vars), fn = ~as.factor(.)) %>%
-    step_zv(all_predictors()) %>%
-    step_normalize(all_numeric_predictors()) %>%
-    step_dummy(all_nominal_predictors(), one_hot = TRUE)
-}
+# Apply to all features
+scaled_features <- predict(preproc, long_data[, feature_cols])
 
 
-#6 PREP + BAKE__________________________________________________________________
-prep_and_bake <- function(df) {
-  recipe_obj <- create_recipe(df)
-  recipe_prep <- prep(recipe_obj)
-  bake(recipe_prep, new_data = NULL)
-}
-
-baked_train <- prep_and_bake(train_set)
-baked_dev   <- prep_and_bake(dev_set)
-baked_test  <- prep_and_bake(test_set)
+#8 FINAL DATASET WITH UNSCALED COLUMNS PRESERVED________________________________
+final_data <- bind_cols(long_data[, exclude_cols], scaled_features)
 
 
-#7 SAVE FINAL MODEL-READY DATASETS______________________________________________
-write_csv(baked_train, "preprocessed_train.csv")
-write_csv(baked_dev,   "preprocessed_dev.csv")
-write_csv(baked_test,  "preprocessed_test.csv")
+#9 GENERATE SPLIT SET___________________________________________________________
+train_final <- final_data %>% filter(split == "train") %>% select(-vote_2017, 
+                                                                  -vote_2021)
+val_final   <- final_data %>% filter(split == "val")   %>% select(-vote_2021)
+test_final  <- final_data %>% filter(split == "test")
+final_test_2023 <- final_data %>% filter(split == "final_test")
+
+
+# Save data to CSV file
+write_csv(train_final, "train_final.csv")
+write_csv(val_final, "val_final.csv")
+write_csv(test_final, "test_final.csv")
+write_csv(final_test_2023, "final_test_2023.csv")
