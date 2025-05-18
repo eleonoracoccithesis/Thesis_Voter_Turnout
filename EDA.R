@@ -189,6 +189,7 @@ ggplot(cramer_df, aes(x = Var2, y = Var1, fill = value, label = round(value, 2))
 
 
 #7 SPEARMAN CORRELATION: ORDINAL VARIABLES_____________________________________
+# Packages
 library(ggcorrplot)
 
 # Filter 2023 ordinal variables once
@@ -237,8 +238,7 @@ ggcorrplot(spearman_matrix,
 
 
 #8 VIF: MULTICOLLINEARITY CHECK________________________________________________
-
-# Load necessary libraries
+# Packages
 library(car)
 library(dplyr)
 
