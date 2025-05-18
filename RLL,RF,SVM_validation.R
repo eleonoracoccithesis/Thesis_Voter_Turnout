@@ -17,7 +17,7 @@ confusionMatrix(val_pred_rll, y_val, positive = "Yes")
 
 
 #4 PREDICT & EVALUATE (Random Forest)___________________________________________
-val_pred_rf <- predict(model_rf_f1_down, newdata = X_val)
+val_pred_rf <- predict(ensemble_rf, newdata = X_val)
 confusionMatrix(val_pred_rf, y_val, positive = "Yes")
 
 
