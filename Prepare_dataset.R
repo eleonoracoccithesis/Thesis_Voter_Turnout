@@ -33,10 +33,6 @@ write.csv(merged_data, "merged_data.csv", row.names = FALSE)
 
 
 #2. SELECT VARIABLES ___________________________________________________________
-
-# Download packages
-library(dplyr)
-
 # Create variable list 
 
 vars_to_keep <- c(
@@ -137,7 +133,6 @@ final_data <- final_data %>% select(-all_of(vars_to_remove), -first_voting_year)
 
 # Preview result
 head(final_data)
-
 
 # Save final_data to CSV file
 write.csv(final_data, "final_data.csv", row.names = FALSE)
