@@ -7,12 +7,7 @@ library(ggthemes)
 library(gridExtra)
 
 
-
 #1 CLASS DISTRIBUTION OF VOTE_2023______________________________________________
-# Load required packages
-library(ggplot2)
-library(dplyr)
-
 # Define colors
 vote_colors <- c("1" = "#2ECC71",  # green
                  "2" = "#E74C3C",  # red
@@ -33,10 +28,9 @@ ggplot(plot_data, aes(x = vote_2023, fill = vote_2023)) +
   scale_fill_manual(values = vote_colors,
                     labels = vote_labels,
                     na.translate = FALSE) +
-  labs(title = "Vote 2023: Class Distribution",
-       x = "Vote Code", y = "Count", fill = "Vote 2023") +
-  theme_minimal()
-
+  labs(x = "Vote Code", y = "Count", fill = "vote_2023") +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
 
 
 #2 MISSING VALUES_______________________________________________________________
@@ -57,7 +51,6 @@ missing_df <- missing_df %>%
 
 # Save missing_df to CSV file
 write.csv(missing_df, "missing_df.csv", row.names = FALSE)
-
 
 
 #3 IMPUTATION___________________________________________________________________
@@ -93,7 +86,6 @@ for (col in numeric_vars) {
   cleaned_data[[col]][missing_idx] <- sampled_vals
 }
 
-
 # Impute ordinal variables (median of numeric conversion)
 for (col in ordinal_vars) {
   cleaned_data[[col]][is.na(cleaned_data[[col]])] <- median(as.numeric(cleaned_data[[col]]), na.rm = TRUE)
@@ -110,7 +102,6 @@ cat("Total missing values remaining:", sum(is.na(cleaned_data)), "\n")
 
 # Save cleaned_data to CSV
 write.csv(cleaned_data, "cleaned_data.csv", row.names = FALSE)
-
 
 
 #4 AGE BEFORE AND AFTER IMPUTATION______________________________________________
@@ -144,10 +135,7 @@ ggplot(age_long_combined, aes(x = age, fill = imputed)) +
   theme_minimal()
 
 
-
-# 5 AGE AND VOTE 2023: DENSITY PLOT_____________________________________________________
-library(ggplot2)
-
+# 5 AGE AND VOTE 2023: DENSITY PLOT_____________________________________________
 # Filter out Not Eligible (3)
 filtered_data <- cleaned_data[cleaned_data$vote_2023 %in% c(1, 2), ]
 
@@ -155,18 +143,12 @@ ggplot(filtered_data, aes(x = age_2023, fill = as.factor(vote_2023))) +
   geom_density(alpha = 0.5) +
   scale_fill_manual(values = c("1" = "#2ECC71", "2" = "#3498DB"),
                     labels = c("1" = "Yes", "2" = "No")) +
-  labs(title = "Density Plot: Age vs Vote 2023 (Excluding Not Eligible)",
-       x = "Age (2023)", y = "Density", fill = "Vote 2023") +
+  labs(x = "Age 2023", y = "Density", fill = "vote_2023") +
   theme_minimal()
 
 
-
-
-# 6 CRAMER'S V: CATEGORICAL VARIABLES___________________________________________
+#6 CRAMER'S V: CATEGORICAL VARIABLES___________________________________________
 # Packages
-library(ggplot2)
-library(dplyr)
-library(tidyr)
 library(reshape2)
 library(DescTools)
 
@@ -201,18 +183,12 @@ ggplot(cramer_df, aes(x = Var2, y = Var1, fill = value, label = round(value, 2))
   geom_text(color = "white", size = 4) +
   scale_fill_gradient2(low = "blue", mid = "purple", high = "red", midpoint = 0.5,
                        limits = c(0, 1), name = "Cramér's V") +
-  labs(title = "Cramér's V (2023) - Categorical Association Matrix (with Diagonal)",
-       x = NULL, y = NULL) +
+  labs(x = NULL, y = NULL) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 
-
-
-# 7 SPEARMAN CORRELATION: ORDINAL VARIABLES_____________________________________
-library(ggplot2)
-library(tidyr)
-library(dplyr)
+#7 SPEARMAN CORRELATION: ORDINAL VARIABLES_____________________________________
 library(ggcorrplot)
 
 # Filter 2023 ordinal variables once
@@ -251,14 +227,16 @@ ggcorrplot(spearman_matrix,
            method = "circle", 
            type = "lower", 
            lab = TRUE, 
-           lab_size = 3, 
+           lab_size = 5,                         # larger label text
            colors = c("blue", "white", "red"),
-           title = "Spearman Correlation of 2023 Ordinal Variables",
-           tl.cex = 8)
+           tl.cex = 10) +                        # only one tl.cex
+  theme(
+    panel.grid = element_blank(),              # removes inner grid lines
+    axis.text = element_text(size = 12)        # increases axis label size
+  )
 
 
-
-# 8 VIF: MULTICOLLINEARITY CHECK________________________________________________
+#8 VIF: MULTICOLLINEARITY CHECK________________________________________________
 
 # Load necessary libraries
 library(car)
