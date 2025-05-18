@@ -1,5 +1,4 @@
 #1. MERGE VARIABLES INTO ONE DATASET ___________________________________________
-
 # Download packages
 library(haven)
 library(dplyr)
