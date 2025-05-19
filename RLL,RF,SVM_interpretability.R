@@ -35,7 +35,7 @@ for (feature in features_rf) {
     theme_minimal() +
     theme(
       plot.title = element_blank(),  # remove title
-      axis.title = element_text(size = 8),
+      axis.title = element_text(size = 12),
       axis.text = element_text(size = 7)
     )
   pdp_plots[[feature]] <- p
