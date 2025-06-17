@@ -7,27 +7,27 @@ library(ggthemes)
 library(gridExtra)
 
 
-#1 CLASS DISTRIBUTION OF VOTE_2023______________________________________________
-# Define colors
+# Define colors, including one for NA (e.g., gray)
 vote_colors <- c("1" = "#2ECC71",  # green
                  "2" = "#E74C3C",  # red
-                 "3" = "#3498DB")  # blue
+                 "3" = "#3498DB",  # blue
+                 "NA" = "gray70")  # color for missing
 
-# Define legend labels
-vote_labels <- c("1" = "1 = Yes", "2" = "2 = No", "3" = "3 = Not eligible")
+# Define labels, including for NA
+vote_labels <- c("1" = "1 = Yes", "2" = "2 = No", "3" = "3 = Not eligible", "NA" = "Missing")
 
-# Filter data to exclude NA
+# Don't filter out NA
 plot_data <- final_data %>%
-  filter(!is.na(vote_2023)) %>%
-  mutate(vote_2023 = factor(vote_2023, levels = c(1, 2, 3)))  # ensure factor order
+  mutate(vote_2023 = factor(vote_2023, levels = c(1, 2, 3)))  # NA will stay NA
 
-# Plot with counts
+# Plot
 ggplot(plot_data, aes(x = vote_2023, fill = vote_2023)) +
   geom_bar() +
-  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5) +  # <- add count labels
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5) +
   scale_fill_manual(values = vote_colors,
                     labels = vote_labels,
-                    na.translate = FALSE) +
+                    na.translate = TRUE,  # <- include NA in fill
+                    na.value = "gray70") +
   labs(x = "Vote Code", y = "Count", fill = "vote_2023") +
   theme_minimal() +
   theme(panel.grid = element_blank())
