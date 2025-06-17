@@ -4,7 +4,7 @@ library(ggplot2)
 library(tidyr)
 library(forcats)
 library(ggthemes)
-library(gridExtra)
+library(gridExtra) 
 
 
 # Define colors, including one for NA (e.g., gray)
