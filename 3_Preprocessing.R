@@ -63,15 +63,15 @@ scaled_features <- predict(preproc, long_data[, feature_cols])
 
 
 #8 FINAL DATASET WITH UNSCALED COLUMNS PRESERVED________________________________
-final_data <- bind_cols(long_data[, exclude_cols], scaled_features)
+preprocessed_data <- bind_cols(long_data[, exclude_cols], scaled_features)
 
 
 #9 GENERATE SPLIT SET___________________________________________________________
-train_final <- final_data %>% filter(split == "train") %>% select(-vote_2017, 
+train_final <- preprocessed_data %>% filter(split == "train") %>% select(-vote_2017, 
                                                                   -vote_2021)
-val_final   <- final_data %>% filter(split == "val")   %>% select(-vote_2021)
-test_final  <- final_data %>% filter(split == "test")
-final_test_2023 <- final_data %>% filter(split == "final_test")
+val_final   <- preprocessed_data %>% filter(split == "val")   %>% select(-vote_2021)
+test_final  <- preprocessed_data %>% filter(split == "test")
+final_test_2023 <- preprocessed_data %>% filter(split == "final_test")
 
 
 # Save data to CSV file
