@@ -90,7 +90,7 @@ for (col in numeric_vars) {
 for (col in ordinal_vars) {
   cleaned_data[[col]][is.na(cleaned_data[[col]])] <- median(as.numeric(cleaned_data[[col]]), na.rm = TRUE)
 }
-
+ 
 # Impute categorical + past voting vars (mode)
 for (col in c(categorical_vars, vote_vars)) {
   cleaned_data[[col]][is.na(cleaned_data[[col]])] <- get_mode(cleaned_data[[col]])
