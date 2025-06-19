@@ -121,11 +121,12 @@ for (year in names(voting_vars_by_year)) {
   filtered_data$first_voting_year[is.na(filtered_data$first_voting_year) & has_answer] <- year
 }
 
-# Keep only one entry per participant: the first time they voted
+
+# Keep first observation per participant, even if no voting history
 final_data <- filtered_data %>%
-  filter(!is.na(first_voting_year)) %>%
   arrange(nomem_encr, first_voting_year) %>%
   distinct(nomem_encr, .keep_all = TRUE)
+
 
 # Drop raw vote variables and first_voting_year
 vars_to_remove <- unlist(voting_vars_by_year)
