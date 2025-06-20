@@ -55,10 +55,23 @@ write.csv(missing_df, "missing_df.csv", row.names = FALSE)
 
 
 # 3. IMPUTATION ___________________________________________________________________________
-# Drop rows with >60% missing values
-threshold <- 0.6 * ncol(final_data)
-rows_to_drop <- which(rowSums(is.na(final_data)) > threshold)
+
+# Exclude vote variables and is_first_timer from missingness filtering
+excluded_from_check <- c("vote_2012", "vote_2017", "vote_2021", "vote_2023", "is_first_timer")
+missing_check_vars <- setdiff(names(final_data), excluded_from_check)
+
+# Drop rows with >60% missing values (among remaining variables)
+threshold <- 0.6 * length(missing_check_vars)
+rows_to_drop <- which(rowSums(is.na(final_data[, missing_check_vars])) > threshold)
+
+# Apply filtering
 cleaned_data <- final_data[-rows_to_drop, ]
+
+# Preserve is_first_timer explicitly (in case of reordering or drop)
+cleaned_data$is_first_timer <- final_data$is_first_timer[-rows_to_drop]
+
+# Confirm preservation
+stopifnot("is_first_timer" %in% names(cleaned_data))
 
 # Identify variable types
 numeric_vars <- grep("^age_", names(cleaned_data), value = TRUE)
@@ -67,7 +80,7 @@ ordinal_vars <- grep("^(satisfaction|confidence)_(work_government|government|par
 vote_vars <- grep("^vote_\\d{4}$", names(cleaned_data), value = TRUE)
 target_var <- "vote_2023"
 vote_vars <- setdiff(vote_vars, target_var)
-categorical_vars <- setdiff(names(cleaned_data), c(numeric_vars, ordinal_vars, vote_vars, target_var))
+categorical_vars <- setdiff(names(cleaned_data), c(numeric_vars, ordinal_vars, vote_vars, target_var, "is_first_timer"))
 
 # Mode function
 get_mode <- function(x) {
@@ -75,7 +88,7 @@ get_mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
-# Numeric imputation
+# Numeric imputation (random sampling)
 for (col in numeric_vars) {
   missing_idx <- which(is.na(cleaned_data[[col]]))
   sampled_vals <- sample(cleaned_data[[col]][!is.na(cleaned_data[[col]])],
@@ -83,21 +96,27 @@ for (col in numeric_vars) {
   cleaned_data[[col]][missing_idx] <- sampled_vals
 }
 
-# Ordinal median
+# Ordinal imputation (median)
 for (col in ordinal_vars) {
   cleaned_data[[col]][is.na(cleaned_data[[col]])] <- median(as.numeric(cleaned_data[[col]]), na.rm = TRUE)
 }
 
-# Categorical/vote (mode)
+# Categorical and vote imputation (mode)
 for (col in c(categorical_vars, vote_vars)) {
   cleaned_data[[col]][is.na(cleaned_data[[col]])] <- get_mode(cleaned_data[[col]])
 }
 
-# Check results
+# Final check
 cat("Final row count:", nrow(cleaned_data), "\n")
 cat("Remaining missing values:", sum(is.na(cleaned_data)), "\n")
 
+# Optional: sanity check for first-time voters
+cat("is_first_timer distribution in cleaned_data:\n")
+print(table(cleaned_data$is_first_timer))
+
+# Save to file
 write.csv(cleaned_data, "cleaned_data.csv", row.names = FALSE)
+
 
 
 # 4. AGE DISTRIBUTION BEFORE AND AFTER IMPUTATION _________________________________________
