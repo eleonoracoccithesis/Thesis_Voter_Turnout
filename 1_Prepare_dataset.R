@@ -94,8 +94,9 @@ head(filtered_data)
 write.csv(filtered_data, "filtered_data.csv", row.names = FALSE)
 
 
-#3 AVOID DUPLICATE VOTERS_______________________________________________________
-# Mapping of voting variables by election year
+#3. FIXED: AVOID DUPLICATE VOTERS & HANDLE FIRST-TIME VOTERS _______________________
+
+# Define vote variables grouped by election year
 voting_vars_by_year <- list(
   "2012" = c("cv13f053", "cv14g053", "cv16h053", "cv17i053", "cv18j053"),
   "2017" = c("cv19k053", "cv20l053", "cv21m053"),
@@ -103,17 +104,23 @@ voting_vars_by_year <- list(
   "2023" = c("cv24p053")
 )
 
-# Create composite vote columns per year
+# Step 1: Create composite vote columns per year
 for (year in names(voting_vars_by_year)) {
   vote_vars <- voting_vars_by_year[[year]]
-  filtered_data[[paste0("vote_", year)]] <- apply(
+  vote_col <- paste0("vote_", year)
+  
+  filtered_data[[vote_col]] <- apply(
     filtered_data[, vote_vars],
     1,
-    function(x) x[!is.na(x)][1]  # first non-NA
+    function(x) {
+      val <- x[!is.na(x)][1]
+      if (length(val) == 0) return(NA)
+      return(val)
+    }
   )
 }
 
-# Identify first year a participant answered a vote question
+# Step 2: Identify first year a participant answered a vote question
 filtered_data$first_voting_year <- NA
 for (year in names(voting_vars_by_year)) {
   vote_col <- paste0("vote_", year)
@@ -121,21 +128,31 @@ for (year in names(voting_vars_by_year)) {
   filtered_data$first_voting_year[is.na(filtered_data$first_voting_year) & has_answer] <- year
 }
 
+# Step 3: Add is_first_timer flag
+filtered_data$is_first_timer <- is.na(filtered_data$first_voting_year)
 
-# Keep first observation per participant, even if no voting history
+# Step 4: Replace NA in vote columns with "Unknown"
+vote_cols <- paste0("vote_", names(voting_vars_by_year))
+filtered_data[vote_cols] <- lapply(filtered_data[vote_cols], function(x) {
+  x[is.na(x)] <- "Unknown"
+  return(as.factor(x))
+})
+
+# Step 5: Keep the MOST RECENT observation per participant
+filtered_data$first_voting_year <- as.numeric(filtered_data$first_voting_year)
 final_data <- filtered_data %>%
-  arrange(nomem_encr, first_voting_year) %>%
+  arrange(nomem_encr, desc(first_voting_year)) %>%
   distinct(nomem_encr, .keep_all = TRUE)
 
-
-# Drop raw vote variables and first_voting_year
+# Step 6: Drop raw vote variables and helper columns
 vars_to_remove <- unlist(voting_vars_by_year)
-final_data <- final_data %>% select(-all_of(vars_to_remove), -first_voting_year)
+final_data <- final_data %>%
+  select(-all_of(vars_to_remove), -first_voting_year)
 
 # Preview result
 head(final_data)
 
-# Save final_data to CSV file
+# Save to CSV
 write.csv(final_data, "final_data.csv", row.names = FALSE)
 
 
@@ -371,5 +388,17 @@ final_data <- final_data %>% rename(any_of(rename_vector))
 # Preview
 head(final_data)
 
+# Replace missing vote values with "Unknown" for prior elections
+final_data <- final_data %>%
+  mutate(
+    vote_2012 = ifelse(is.na(vote_2012), "Unknown", as.character(vote_2012)),
+    vote_2017 = ifelse(is.na(vote_2017), "Unknown", as.character(vote_2017)),
+    vote_2021 = ifelse(is.na(vote_2021), "Unknown", as.character(vote_2021)),
+    is_first_timer = ifelse(
+      vote_2012 == "Unknown" & vote_2017 == "Unknown" & vote_2021 == "Unknown", 1, 0
+    )
+  )
+
 # Save final_data to CSV file
 write.csv(final_data, "final_data.csv", row.names = FALSE)
+
