@@ -1,26 +1,42 @@
-#1 FILTER + CLEAN VALIDATION DATA (only once)___________________________________
-val_bin <- val_final %>%
-  filter(vote_2023 %in% c(1, 2)) %>%
-  drop_na() %>%
-  mutate(vote_2023 = factor(ifelse(vote_2023 == 1, "Yes", "No"),
-                            levels = c("No", "Yes")))
+# 3. DEFINE EVALUATION FUNCTION ------------------------------------------------
+evaluate_model <- function(predictions, truth) {
+  cm <- confusionMatrix(predictions, truth, positive = "No")
+  
+  precision_no <- Precision(y_pred = predictions, y_true = truth, positive = "No")
+  recall_no <- Recall(y_pred = predictions, y_true = truth, positive = "No")
+  f1_no <- F1_Score(y_pred = predictions, y_true = truth, positive = "No")
+  
+  precision_yes <- Precision(y_pred = predictions, y_true = truth, positive = "Yes")
+  recall_yes <- Recall(y_pred = predictions, y_true = truth, positive = "Yes")
+  f1_yes <- F1_Score(y_pred = predictions, y_true = truth, positive = "Yes")
+  
+  macro_f1 <- mean(c(f1_no, f1_yes))
+  
+  list(
+    ConfusionMatrix = cm$table,
+    Precision_No = precision_no,
+    Recall_No = recall_no,
+    F1_No = f1_no,
+    Precision_Yes = precision_yes,
+    Recall_Yes = recall_yes,
+    F1_Yes = f1_yes,
+    Macro_F1 = macro_f1
+  )
+}
 
-
-#2 FEATURES AND LABELS__________________________________________________________
-X_val <- val_bin %>% select(-vote_2023, -participant, -year, -split)
-y_val <- val_bin$vote_2023
-
-
-#3 PREDICT & EVALUATE (Logistic Regression)_____________________________________
+# 4. PREDICT & EVALUATE (Logistic Regression) ----------------------------------
 val_pred_rll <- predict(model_rll_f1, newdata = X_val)
-confusionMatrix(val_pred_rll, y_val, positive = "Yes")
+results_rll <- evaluate_model(val_pred_rll, y_val)
 
+# 5. PREDICT & EVALUATE (Random Forest) ----------------------------------------
+val_pred_rf <- predict(rf_model, newdata = X_val)
+results_rf <- evaluate_model(val_pred_rf, y_val)
 
-#4 PREDICT & EVALUATE (Random Forest)___________________________________________
-val_pred_rf <- predict(ensemble_rf, newdata = X_val)
-confusionMatrix(val_pred_rf, y_val, positive = "Yes")
-
-
-#5 PREDICT & EVALUATE (SVM)_____________________________________________________
+# 6. PREDICT & EVALUATE (SVM) --------------------------------------------------
 val_pred_svm <- predict(model_svm_f1, newdata = X_val)
-confusionMatrix(val_pred_svm, y_val, positive = "Yes")
+results_svm <- evaluate_model(val_pred_svm, y_val)
+
+# Optional: Print results
+print(results_rll)
+print(results_rf)
+print(results_svm)
