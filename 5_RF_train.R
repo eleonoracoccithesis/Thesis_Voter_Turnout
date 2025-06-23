@@ -1,51 +1,58 @@
-#1 LOAD LIBRARIES_______________________________________________________________
+# 1. LOAD LIBRARIES ------------------------------------------------------------
 library(caret)
 library(dplyr)
 library(MLmetrics)
+library(randomForest)
 
-
-#1 PREPARE BINARY TRAINING SET__________________________________________________
+# 2. PREPARE BINARY TRAINING SET -----------------------------------------------
 train_df_bin <- train_final %>%
   filter(vote_2023 %in% c(1, 2)) %>%
   select(-participant, -year, -split)
 
+# Convert to factor
 train_df_bin$vote_2023 <- factor(ifelse(train_df_bin$vote_2023 == 1, "Yes", "No"), levels = c("No", "Yes"))
 
+# 3. COMPUTE CLASS WEIGHTS -----------------------------------------------------
+class_counts <- table(train_df_bin$vote_2023)
+class_weights <- 1 / class_counts
+class_weights <- class_weights / sum(class_weights)
+row_weights <- class_weights[as.character(train_df_bin$vote_2023)]
 
-#2 DEFINE CUSTOM F1 FUNCTION____________________________________________________
+# 4. CUSTOM F1 METRIC FUNCTION -------------------------------------------------
 f1Summary <- function(data, lev = NULL, model = NULL) {
-  precision <- Precision(y_pred = data$pred, y_true = data$obs, positive = "Yes")
-  recall <- Recall(y_pred = data$pred, y_true = data$obs, positive = "Yes")
-  f1 <- F1_Score(y_pred = data$pred, y_true = data$obs, positive = "Yes")
+  precision <- Precision(y_pred = data$pred, y_true = data$obs, positive = "No")
+  recall <- Recall(y_pred = data$pred, y_true = data$obs, positive = "No")
+  f1 <- F1_Score(y_pred = data$pred, y_true = data$obs, positive = "No")
   c(Precision = precision, Recall = recall, F1 = f1)
 }
 
-
-#3 CONTROL SETTIGNS WITH BAGGIN + DOWNSAMPLING__________________________________
-cv_control_ensemble <- trainControl(
+# 5. CROSS-VALIDATION CONTROL --------------------------------------------------
+cv_control <- trainControl(
   method = "cv",
   number = 5,
-  sampling = "down",        # automatic per-fold balancing
-  classProbs = TRUE,
+  classProbs = FALSE,
   savePredictions = TRUE,
   summaryFunction = f1Summary
 )
 
+# 6. HYPERPARAMETER GRID -------------------------------------------------------
+tune_grid <- expand.grid(mtry = c(3, 4, 5))
 
-#4 TRAIN ENSEMBLE RANDOM FOREST_________________________________________________
+# 7. TRAIN RANDOM FOREST -------------------------------------------------------
 set.seed(42)
-ensemble_rf <- train(
+rf_model <- train(
   vote_2023 ~ .,
   data = train_df_bin,
   method = "rf",
-  ntree = 100,
-  trControl = cv_control_ensemble,
-  metric = "F1"
+  weights = row_weights,
+  trControl = cv_control,
+  tuneGrid = tune_grid,
+  metric = "F1",
+  ntree = 100
 )
 
-
-#5 REVIEW PERFORMANCE___________________________________________________________
-print(ensemble_rf)
-cv_results <- ensemble_rf$resample
+# 8. REVIEW RESULTS ------------------------------------------------------------
+print(rf_model)
+cv_results <- rf_model$resample
 print(cv_results)
 t.test(cv_results$F1)
